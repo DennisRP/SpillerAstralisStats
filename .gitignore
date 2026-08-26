@@ -1,0 +1,23 @@
+## .NET build output
+bin/
+obj/
+[Bb]uild/
+[Bb]uild[Ll]og.*
+
+## Azure Functions local settings and tooling
+local.settings.json
+.azure-functions-core-tools/
+
+## IDE files
+.vs/
+.vscode/
+*.user
+*.suo
+
+## Test results and coverage
+TestResults/
+coverage/
+
+.agents/
+
+*.settings.json
