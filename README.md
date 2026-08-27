@@ -14,6 +14,8 @@ The timer function currently logs `Hello World` daily using `0 37 13 * * *` and 
 
 Install the .NET 8 SDK, Azure Functions Core Tools v4, and Azurite. Copy `src/SpillerAstralisStats/local.settings.json.example` to `src/SpillerAstralisStats/local.settings.json`, then start Azurite before running the Functions host.
 
+Set `PandaScore__ApiKey` in the local settings file (or as a deployed Function App setting). `PandaScore__BaseUrl` defaults to `https://api.pandascore.co/`, and `PandaScore__HistoryLookbackMonths` defaults to `12` and accepts values from `6` through `12`. The ingestion uses PandaScore team ID `3209` and does not persist data yet.
+
 ```powershell
 dotnet restore SpillerAstralisStats.sln
 dotnet build SpillerAstralisStats.sln

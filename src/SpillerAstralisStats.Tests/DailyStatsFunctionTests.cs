@@ -2,21 +2,26 @@ using System.Reflection;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 using SpillerAstralisStats;
+using SpillerAstralisStats.Application;
+using SpillerAstralisStats.Domain;
 
 namespace SpillerAstralisStats.Tests;
 
 public sealed class DailyStatsFunctionTests
 {
     [Fact]
-    public void Run_logs_the_initial_greeting()
+    public async Task Run_logs_greeting_and_ingestion_summary()
     {
         var logger = new TestLogger<DailyStatsFunction>();
-        var function = new DailyStatsFunction(logger);
+        var ingestion = new StubIngestionService(PandaScoreIngestionResult.Success(
+            [new MatchRecord(1, null, null, null, "finished", null, [], [], null, null, null, null, null, [], null)], 12));
+        var function = new DailyStatsFunction(logger, ingestion);
 
-        function.Run(null!);
+        await function.Run(null!, CancellationToken.None);
 
-        Assert.Single(logger.Messages);
-        Assert.Equal("Hello World", logger.Messages[0]);
+        Assert.Contains("Hello World", logger.Messages);
+        Assert.Contains(logger.Messages, message => message.Contains("12-month window with 1 matches", StringComparison.Ordinal));
+        Assert.Equal(CancellationToken.None, ingestion.ReceivedCancellationToken);
     }
 
     [Fact]
@@ -30,26 +35,29 @@ public sealed class DailyStatsFunctionTests
         Assert.True(timerTrigger.RunOnStartup);
     }
 
-    private sealed class TestLogger<T> : ILogger<T>
+    [Fact]
+    public async Task Run_logs_failure_without_provider_payload_or_credential()
     {
-        public List<string> Messages { get; } = [];
+        var logger = new TestLogger<DailyStatsFunction>();
+        var ingestion = new StubIngestionService(PandaScoreIngestionResult.Failure(
+            IngestionFailureCategory.ProviderResponse, "HTTP 500", 12));
+        var function = new DailyStatsFunction(logger, ingestion);
 
-        public IDisposable BeginScope<TState>(TState state) where TState : notnull => NullScope.Instance;
+        await function.Run(null!, CancellationToken.None);
 
-        public bool IsEnabled(LogLevel logLevel) => true;
+        Assert.DoesNotContain(logger.Messages, message => message.Contains("secret", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(logger.Messages, message => message.Contains("Authorization", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(logger.Messages, message => message.Contains("HTTP 500", StringComparison.Ordinal));
+    }
 
-        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+    private sealed class StubIngestionService(PandaScoreIngestionResult result) : IPandaScoreMatchIngestionService
+    {
+        public CancellationToken ReceivedCancellationToken { get; private set; }
+
+        public Task<PandaScoreIngestionResult> IngestAsync(CancellationToken cancellationToken)
         {
-            Messages.Add(formatter(state, exception));
-        }
-
-        private sealed class NullScope : IDisposable
-        {
-            public static readonly NullScope Instance = new();
-
-            public void Dispose()
-            {
-            }
+            ReceivedCancellationToken = cancellationToken;
+            return Task.FromResult(result);
         }
     }
 }

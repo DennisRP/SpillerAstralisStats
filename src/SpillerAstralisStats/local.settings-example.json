@@ -2,6 +2,9 @@
   "IsEncrypted": false,
   "Values": {
     "AzureWebJobsStorage": "UseDevelopmentStorage=true",
-    "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated"
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
+    "PandaScore__BaseUrl": "https://api.pandascore.co/",
+    "PandaScore__ApiKey": "",
+    "PandaScore__HistoryLookbackMonths": "12"
   }
 }
