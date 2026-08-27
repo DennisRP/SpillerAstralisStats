@@ -1,0 +1,6 @@
+- This project uses .NET 8.
+- Follow the OpenSpec workflow.
+- PandaScore is the authoritative match-data source.
+- AI must not calculate match statistics; deterministic application code does this.
+- Prefer structured retrieval for match data.
+- Read PROJECT_CONTEXT.md before planning or implementing changes.
