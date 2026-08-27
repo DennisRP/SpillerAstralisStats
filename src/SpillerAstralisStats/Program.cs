@@ -11,6 +11,8 @@ var host = new HostBuilder()
     {
         services.AddOptions<PandaScoreOptions>()
             .BindConfiguration(PandaScoreOptions.SectionName);
+        services.AddOptions<StaticStatsOptions>()
+            .BindConfiguration(StaticStatsOptions.SectionName);
         services.AddHttpClient<PandaScoreMatchClient>((serviceProvider, client) =>
         {
             client.BaseAddress = new Uri(
@@ -18,6 +20,7 @@ var host = new HostBuilder()
         });
         services.AddSingleton<TimeProvider>(TimeProvider.System);
         services.AddSingleton<IPandaScoreMatchIngestionService, PandaScoreMatchIngestionService>();
+        services.AddSingleton<StaticStatsPublisher>();
     })
     .Build();
 

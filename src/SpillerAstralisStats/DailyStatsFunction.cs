@@ -6,7 +6,8 @@ namespace SpillerAstralisStats;
 
 public sealed class DailyStatsFunction(
     ILogger<DailyStatsFunction> logger,
-    IPandaScoreMatchIngestionService ingestionService)
+    IPandaScoreMatchIngestionService ingestionService,
+    StaticStatsPublisher staticStatsPublisher)
 {
     [Function(nameof(DailyStatsFunction))]
     public async Task Run(
@@ -22,6 +23,11 @@ public sealed class DailyStatsFunction(
                 "PandaScore ingestion succeeded for {LookbackMonths}-month window with {MatchCount} matches.",
                 result.LookbackMonths,
                 result.Matches.Count);
+            var publication = await staticStatsPublisher.PublishAsync(result.Matches, cancellationToken);
+            logger.LogInformation(
+                "Static stats data published with {MatchCount} matches and {OpponentSummaryCount} opponent summaries.",
+                publication.MatchCount,
+                publication.OpponentSummaryCount);
         }
         else
         {

@@ -3,6 +3,7 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 using SpillerAstralisStats;
 using SpillerAstralisStats.Application;
+using SpillerAstralisStats.Configuration;
 using SpillerAstralisStats.Domain;
 
 namespace SpillerAstralisStats.Tests;
@@ -14,10 +15,12 @@ public sealed class DailyStatsFunctionTests
     {
         var logger = new TestLogger<DailyStatsFunction>();
         var ingestion = new StubIngestionService(PandaScoreIngestionResult.Success(
-            [new MatchRecord(1, null, null, null, "finished", null, [], [], null, null, null, null, null, [], null)], 12));
-        var function = new DailyStatsFunction(logger, ingestion);
+            [new MatchRecord(1, new DateTimeOffset(2026, 8, 20, 12, 0, 0, TimeSpan.Zero), null, null, "finished", 3209, [new OpponentRecord(3209, "Astralis"), new OpponentRecord(456, "G2")], [new ScoreRecord(3209, 2), new ScoreRecord(456, 0)], 3, "best_of", null, null, null, [], null)], 12));
+        var outputPath = Path.Combine(Path.GetTempPath(), $"spiller-function-test-{Guid.NewGuid():N}");
+        var function = new DailyStatsFunction(logger, ingestion, Publisher(outputPath));
 
-        await function.Run(null!, CancellationToken.None);
+        try { await function.Run(null!, CancellationToken.None); }
+        finally { if (Directory.Exists(outputPath)) Directory.Delete(outputPath, true); }
 
         Assert.Contains("Hello World", logger.Messages);
         Assert.Contains(logger.Messages, message => message.Contains("12-month window with 1 matches", StringComparison.Ordinal));
@@ -41,7 +44,7 @@ public sealed class DailyStatsFunctionTests
         var logger = new TestLogger<DailyStatsFunction>();
         var ingestion = new StubIngestionService(PandaScoreIngestionResult.Failure(
             IngestionFailureCategory.ProviderResponse, "HTTP 500", 12));
-        var function = new DailyStatsFunction(logger, ingestion);
+        var function = new DailyStatsFunction(logger, ingestion, Publisher(Path.Combine(Path.GetTempPath(), $"spiller-function-test-{Guid.NewGuid():N}")));
 
         await function.Run(null!, CancellationToken.None);
 
@@ -49,6 +52,9 @@ public sealed class DailyStatsFunctionTests
         Assert.DoesNotContain(logger.Messages, message => message.Contains("Authorization", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(logger.Messages, message => message.Contains("HTTP 500", StringComparison.Ordinal));
     }
+
+    private static StaticStatsPublisher Publisher(string outputPath) =>
+        new(Microsoft.Extensions.Options.Options.Create(new StaticStatsOptions { OutputPath = outputPath }));
 
     private sealed class StubIngestionService(PandaScoreIngestionResult result) : IPandaScoreMatchIngestionService
     {

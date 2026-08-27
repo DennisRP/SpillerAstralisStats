@@ -5,6 +5,8 @@
     "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
     "PandaScore__BaseUrl": "https://api.pandascore.co/",
     "PandaScore__ApiKey": "",
-    "PandaScore__HistoryLookbackMonths": "12"
+    "PandaScore__HistoryLookbackMonths": "12",
+    "StaticStats__OutputPath": "dist/stats/data",
+    "StaticStats__RecentMatchCount": "5"
   }
 }
