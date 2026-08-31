@@ -69,6 +69,23 @@ The grounding record is returned unchanged with the briefing. It contains the se
 
 Only a `not_started` Astralis match with a scheduled time at or after the selection time and exactly one opponent is eligible. Historical static data continues to use the separate historical collection, so future matches do not appear in `matches.json` or influence the published statistics.
 
+## Published briefing asset
+
+The successful scheduled flow now joins the deterministic and AI steps in one static generation:
+
+```text
+successful PandaScore ingestion
+    -> historical matches + upcoming candidates
+    -> deterministic grounding selection and facts
+    -> optional validated model briefing
+    -> matches.json + stats.json + briefing.json published together
+    -> /stats renders historical statistics and the editorial briefing
+```
+
+`briefing.json` is an inspectable developer artifact. It has either an `available` state with the validated briefing, prompt/schema versions, and full grounding record, or an `unavailable` state with the safe reason `noEligibleTarget` or `generationFailed`. The browser shows only the headline, summary, and key points; it intentionally does not display grounding identifiers or failure details.
+
+This split is intentional: you can open `dist/stats/data/briefing.json` to audit exactly which deterministic facts grounded an available briefing, while a model outage still produces a complete historical statistics generation and a clear visitor fallback. The file never contains credentials, provider payloads, raw model responses, or exception text.
+
 ### Configure Microsoft Foundry locally
 
 1. Create or select a Microsoft Foundry/Azure OpenAI resource and deploy a model that supports the Responses API and strict Structured Outputs. The deployment name is configuration and is not hardcoded.

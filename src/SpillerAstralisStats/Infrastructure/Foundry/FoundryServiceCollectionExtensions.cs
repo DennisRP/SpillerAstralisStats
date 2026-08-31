@@ -15,6 +15,8 @@ internal static class FoundryServiceCollectionExtensions
             .Bind(configuration.GetSection(FoundryOptions.SectionName));
         services.AddSingleton<IMatchBriefingClient, FoundryMatchBriefingClient>();
         services.AddSingleton<MatchBriefingGenerator>();
+        services.AddSingleton<IGroundedMatchBriefingService>(serviceProvider =>
+            new GroundedMatchBriefingService(() => serviceProvider.GetRequiredService<MatchBriefingGenerator>()));
         return services;
     }
 }

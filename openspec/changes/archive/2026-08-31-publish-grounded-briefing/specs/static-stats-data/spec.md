@@ -1,28 +1,4 @@
-# static-stats-data Specification
-
-## Purpose
-
-Publishes deterministic historical Astralis match and statistics data as static JSON assets that a later stats page can consume without a database or live API request.
-
-## Requirements
-
-### Requirement: Completed historical matches are published
-The application SHALL publish `matches.json` containing only finished, eligible historical Astralis match facts in newest-first order. It SHALL retain available match identifiers, timestamps, opponents, outcomes, scores, game counts, and competition details without inventing missing values.
-
-#### Scenario: Mixed historical input
-- **WHEN** ingestion supplies completed records together with unfinished, canceled, incomplete, or duplicate records
-- **THEN** `matches.json` contains each eligible finished match exactly once and excludes the other records
-
-### Requirement: Historical statistics are published
-The application SHALL publish `stats.json` containing recent form and a head-to-head summary for every opponent represented by an eligible historical match. Each head-to-head summary SHALL be calculated solely from finished historical meetings with that opponent.
-
-#### Scenario: Multiple historical opponents
-- **WHEN** eligible historical matches include multiple opponents
-- **THEN** `stats.json` contains a deterministic summary for each opponent without selecting or requiring a future match
-
-#### Scenario: No eligible historical matches
-- **WHEN** no eligible finished Astralis matches are available
-- **THEN** both JSON files are published with valid empty collections and unavailable aggregate values where appropriate
+## ADDED Requirements
 
 ### Requirement: Grounded briefing is published as an optional static asset
 The application SHALL publish `briefing.json` containing either a validated match briefing with its prompt version, schema version, and complete grounding record, or an explicit unavailable state. The unavailable state SHALL identify whether no eligible target was available or briefing generation failed, without exposing credentials, raw provider payloads, or model response text.
@@ -50,6 +26,8 @@ The scheduled application flow SHALL attempt grounded briefing generation only a
 - **WHEN** no target exists or briefing generation fails after successful ingestion
 - **THEN** the scheduled flow publishes the unavailable state with the static data and completes without treating the historical-data generation as failed
 
+## MODIFIED Requirements
+
 ### Requirement: JSON assets are published as a coherent generation
 The application SHALL write `matches.json`, `stats.json`, and `briefing.json` under the configured static data directory as one generation. It SHALL not expose a newly generated asset together with an older or partial companion asset.
 
@@ -60,14 +38,3 @@ The application SHALL write `matches.json`, `stats.json`, and `briefing.json` un
 #### Scenario: Generation failure
 - **WHEN** serialization or filesystem publication fails before completion
 - **THEN** the previously published generation remains available and the partial generation is not published
-
-### Requirement: Scheduled ingestion publishes only after success
-The scheduled application flow SHALL generate and publish static data only after successful PandaScore ingestion. It SHALL log a safe summary containing the published match and opponent-summary counts.
-
-#### Scenario: Successful ingestion
-- **WHEN** historical PandaScore ingestion succeeds
-- **THEN** the application publishes static data and logs its summary without credentials or raw payload data
-
-#### Scenario: Ingestion failure
-- **WHEN** PandaScore ingestion fails
-- **THEN** the application does not replace existing static assets

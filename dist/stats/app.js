@@ -1,6 +1,7 @@
 const DATA_PATHS = Object.freeze({
   matches: "./data/matches.json",
-  stats: "./data/stats.json"
+  stats: "./data/stats.json",
+  briefing: "./data/briefing.json"
 });
 
 const elements = {
@@ -12,7 +13,9 @@ const elements = {
   formSequence: document.querySelector("#form-sequence"),
   formSummary: document.querySelector("#form-summary"),
   headToHead: document.querySelector("#head-to-head-list"),
-  matches: document.querySelector("#matches-list")
+  matches: document.querySelector("#matches-list"),
+  briefingSection: document.querySelector("#briefing-section"),
+  briefingContent: document.querySelector("#briefing-content")
 };
 
 function isRecord(value) {
@@ -127,17 +130,54 @@ function showState(state, message) {
 }
 
 async function loadData() {
-  const responses = await Promise.all(Object.values(DATA_PATHS).map(path => fetch(path, { cache: "no-cache" })));
+  const responses = await Promise.all([DATA_PATHS.matches, DATA_PATHS.stats].map(path => fetch(path, { cache: "no-cache" })));
   if (responses.some(response => !response.ok)) throw new Error("En eller flere datafiler kunne ikke læses.");
   const [matches, stats] = await Promise.all(responses.map(response => response.json()));
   validateData(matches, stats);
   return { matches, stats };
 }
 
+async function loadBriefing() {
+  try {
+    const response = await fetch(DATA_PATHS.briefing, { cache: "no-cache" });
+    if (!response.ok) return null;
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
+function renderBriefing(asset) {
+  elements.briefingSection.hidden = false;
+  elements.briefingContent.replaceChildren();
+  const briefing = asset?.availability === "available" && isRecord(asset.briefing) && isRecord(asset.briefing.briefing)
+    ? asset.briefing.briefing
+    : null;
+
+  if (!briefing || typeof briefing.headline !== "string" || typeof briefing.summary !== "string" || !Array.isArray(briefing.keyPoints)) {
+    const message = asset?.unavailableReason === "noEligibleTarget"
+      ? "Der er ingen kommende kamp, som kan få en AI-briefing lige nu."
+      : asset?.unavailableReason === "generationFailed"
+        ? "AI Match Briefing kunne ikke genereres denne gang."
+        : "AI Match Briefing er ikke tilgængelig lige nu.";
+    elements.briefingContent.append(createElement("p", "briefing-panel__unavailable", message));
+    return;
+  }
+
+  const article = createElement("article", "briefing-card");
+  article.append(createElement("h3", null, briefing.headline), createElement("p", "briefing-card__summary", briefing.summary));
+  const points = createElement("ul", "briefing-card__points");
+  briefing.keyPoints.filter(point => typeof point === "string").forEach(point => points.append(createElement("li", null, point)));
+  article.append(points);
+  elements.briefingContent.append(article);
+}
+
 async function start() {
   showState("loading");
+  const briefingPromise = loadBriefing();
   try {
     const { matches, stats } = await loadData();
+    renderBriefing(await briefingPromise);
     if (matches.length === 0) {
       showState("empty");
       return;
@@ -147,6 +187,7 @@ async function start() {
     renderMatches(matches);
     showState("content");
   } catch (error) {
+    renderBriefing(await briefingPromise);
     showState("error", error instanceof Error ? error.message : "Statistikkerne kunne ikke indlæses.");
   }
 }

@@ -90,7 +90,14 @@ public static class GroundedMatchBriefingBuilder
         && match.Opponents.Count(opponent => opponent.TeamId is > 0 and not MatchFactsCalculator.AstralisTeamId) == 1;
 }
 
-internal sealed class GroundedMatchBriefingService(MatchBriefingGenerator generator)
+public interface IGroundedMatchBriefingService
+{
+    Task<MatchBriefingResult?> GenerateAsync(
+        GroundedMatchBriefingRequest request,
+        CancellationToken cancellationToken);
+}
+
+internal sealed class GroundedMatchBriefingService(Func<MatchBriefingGenerator> generatorFactory) : IGroundedMatchBriefingService
 {
     public Task<MatchBriefingResult?> GenerateAsync(
         GroundedMatchBriefingRequest request,
@@ -107,5 +114,5 @@ internal sealed class GroundedMatchBriefingService(MatchBriefingGenerator genera
     private async Task<MatchBriefingResult?> GenerateAsync(
         GroundedMatchBriefingContext grounding,
         CancellationToken cancellationToken) =>
-        await generator.GenerateAsync(grounding, cancellationToken);
+        await generatorFactory().GenerateAsync(grounding, cancellationToken);
 }

@@ -39,7 +39,7 @@ public sealed class FoundryServiceCollectionExtensionsTests
     }
 
     [Fact]
-    public void Daily_function_has_no_briefing_dependency()
+    public void Daily_function_depends_on_the_grounded_briefing_boundary_not_the_model_client()
     {
         var constructor = Assert.Single(typeof(DailyStatsFunction).GetConstructors());
 
@@ -47,5 +47,6 @@ public sealed class FoundryServiceCollectionExtensionsTests
             constructor.GetParameters(),
             parameter => parameter.ParameterType == typeof(MatchBriefingGenerator)
                 || parameter.ParameterType == typeof(IMatchBriefingClient));
+        Assert.Contains(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(IGroundedMatchBriefingService));
     }
 }

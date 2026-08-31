@@ -65,7 +65,7 @@ public sealed class GroundedMatchBriefingBuilderTests
     public async Task No_target_does_not_invoke_the_model()
     {
         var client = new RecordingClient();
-        var service = new GroundedMatchBriefingService(new MatchBriefingGenerator(client));
+        var service = new GroundedMatchBriefingService(() => new MatchBriefingGenerator(client));
 
         var result = await service.GenerateAsync(new GroundedMatchBriefingRequest([], [], 5, ReferenceTime), CancellationToken.None);
 

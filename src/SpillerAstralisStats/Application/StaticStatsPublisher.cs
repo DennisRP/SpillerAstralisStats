@@ -16,8 +16,11 @@ public sealed class StaticStatsPublisher(IOptions<StaticStatsOptions> options)
 
     public async Task<StaticStatsPublication> PublishAsync(
         IReadOnlyList<MatchRecord> source,
+        StaticBriefingAsset briefing,
         CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(briefing);
+
         var settings = options.Value;
         if (!settings.TryValidate(out var failure))
         {
@@ -42,6 +45,10 @@ public sealed class StaticStatsPublisher(IOptions<StaticStatsOptions> options)
             await File.WriteAllTextAsync(
                 Path.Combine(stagingPath, "stats.json"),
                 JsonSerializer.Serialize(snapshot.Stats, JsonOptions),
+                cancellationToken);
+            await File.WriteAllTextAsync(
+                Path.Combine(stagingPath, "briefing.json"),
+                JsonSerializer.Serialize(briefing, JsonOptions),
                 cancellationToken);
 
             if (Directory.Exists(outputPath))
@@ -79,6 +86,11 @@ public sealed class StaticStatsPublisher(IOptions<StaticStatsOptions> options)
 
         return new StaticStatsPublication(snapshot.Matches.Count, snapshot.Stats.HeadToHead.Count);
     }
+
+    public Task<StaticStatsPublication> PublishAsync(
+        IReadOnlyList<MatchRecord> source,
+        CancellationToken cancellationToken) =>
+        PublishAsync(source, StaticBriefingAsset.Unavailable(StaticBriefingUnavailableReason.NoEligibleTarget), cancellationToken);
 
     private static StaticStatsSnapshot CreateSnapshot(IReadOnlyList<MatchRecord> source, int recentMatchCount)
     {
@@ -139,6 +151,35 @@ public sealed class StaticStatsPublisher(IOptions<StaticStatsOptions> options)
 }
 
 public sealed record StaticStatsPublication(int MatchCount, int OpponentSummaryCount);
+
+public enum StaticBriefingUnavailableReason
+{
+    NoEligibleTarget,
+    GenerationFailed
+}
+
+public sealed record StaticBriefingAsset(
+    string Availability,
+    MatchBriefingResult? Briefing,
+    string? UnavailableReason)
+{
+    public const string Available = "available";
+    public const string UnavailableState = "unavailable";
+
+    public static StaticBriefingAsset FromAvailable(MatchBriefingResult briefing)
+    {
+        ArgumentNullException.ThrowIfNull(briefing);
+        return new(Available, briefing, null);
+    }
+
+    public static StaticBriefingAsset Unavailable(StaticBriefingUnavailableReason reason) =>
+        new(UnavailableState, null, reason switch
+        {
+            StaticBriefingUnavailableReason.NoEligibleTarget => "noEligibleTarget",
+            StaticBriefingUnavailableReason.GenerationFailed => "generationFailed",
+            _ => throw new ArgumentOutOfRangeException(nameof(reason))
+        });
+}
 
 internal sealed record StaticStatsSnapshot(IReadOnlyList<StaticMatchDto> Matches, StaticStatsDto Stats);
 

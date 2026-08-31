@@ -33,6 +33,11 @@ h2 { margin-bottom: 0; font-size: clamp(1.35rem, 3vw, 2rem); letter-spacing: -.0
 h3 { margin-bottom: .15rem; font-size: 1.05rem; }
 .intro { margin-bottom: 0; color: var(--muted); font-size: 1.1rem; overflow-wrap: anywhere; }
 .section-block { margin-top: 3rem; }
+.briefing-panel { margin-top: 2rem; }
+.briefing-card, .briefing-panel__unavailable { padding: 1.25rem; border: 1px solid var(--border); border-radius: 1rem; background: var(--surface); }
+.briefing-card__summary, .briefing-panel__unavailable { color: var(--muted); }
+.briefing-card__points { margin: 1rem 0 0; padding-left: 1.25rem; }
+.briefing-card__points li + li { margin-top: .45rem; }
 .section-heading { display: flex; align-items: end; justify-content: space-between; gap: 1rem; min-width: 0; margin-bottom: 1rem; }
 .section-heading h2 { min-width: 0; }
 .state-panel { display: grid; justify-items: center; gap: .5rem; min-height: 10rem; padding: 2.25rem 1.5rem; border: 1px solid var(--border); border-radius: 1rem; background: var(--surface); text-align: center; color: var(--muted); }

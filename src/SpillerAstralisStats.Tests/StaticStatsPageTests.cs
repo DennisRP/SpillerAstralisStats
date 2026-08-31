@@ -19,6 +19,14 @@ public sealed class StaticStatsPageTests
         Assert.Contains("id=\"error-state\"", html);
         Assert.Contains("./data/matches.json", script);
         Assert.Contains("./data/stats.json", script);
+        Assert.Contains("./data/briefing.json", script);
+        Assert.Contains("AI Match Briefing", html);
+        Assert.Contains("briefing.headline", script);
+        Assert.Contains("briefing.summary", script);
+        Assert.Contains("briefing.keyPoints", script);
+        Assert.Contains("noEligibleTarget", script);
+        Assert.Contains("generationFailed", script);
+        Assert.DoesNotContain("evidenceMatchProviderIds", script, StringComparison.Ordinal);
         Assert.DoesNotContain("https://", script, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("@media (max-width: 700px)", styles);
     }
@@ -52,6 +60,7 @@ public sealed class StaticStatsPageTests
 
             using var matches = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(outputPath, "matches.json")));
             using var stats = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(outputPath, "stats.json")));
+            using var briefing = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(outputPath, "briefing.json")));
             var match = Assert.Single(matches.RootElement.EnumerateArray().ToArray());
 
             Assert.True(match.TryGetProperty("relevantAt", out _));
@@ -60,6 +69,7 @@ public sealed class StaticStatsPageTests
             Assert.True(stats.RootElement.TryGetProperty("recentForm", out var form));
             Assert.True(form.TryGetProperty("outcomes", out _));
             Assert.True(stats.RootElement.TryGetProperty("headToHead", out _));
+            Assert.Equal("unavailable", briefing.RootElement.GetProperty("availability").GetString());
         }
         finally
         {
