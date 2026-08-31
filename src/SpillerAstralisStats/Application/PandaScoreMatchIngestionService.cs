@@ -38,13 +38,20 @@ internal sealed class PandaScoreMatchIngestionService(
 
         var now = timeProvider.GetUtcNow();
         var start = now.AddMonths(-settings.HistoryLookbackMonths);
-        var matches = providerMatches
+        var mappedMatches = providerMatches
             .Select(PandaScoreMatchMapper.Map)
-            .Where(match => IsInWindow(match, start, now))
+            .ToArray();
+        var upcomingMatches = mappedMatches
+            .Where(match => IsUpcomingCandidate(match, now))
+            .OrderBy(match => match.ScheduledAt)
+            .ThenBy(match => match.ProviderId)
+            .ToArray();
+        var matches = mappedMatches
+            .Where(match => IsInWindow(match, start, now) && !IsUpcomingCandidate(match, now))
             .OrderByDescending(match => match.BeginAt ?? match.ScheduledAt)
             .ToArray();
 
-        return PandaScoreIngestionResult.Success(matches, settings.HistoryLookbackMonths);
+        return PandaScoreIngestionResult.Success(matches, upcomingMatches, settings.HistoryLookbackMonths);
     }
 
     private static bool IsInWindow(MatchRecord match, DateTimeOffset start, DateTimeOffset end)
@@ -52,4 +59,11 @@ internal sealed class PandaScoreMatchIngestionService(
         var relevantTime = match.BeginAt ?? match.ScheduledAt;
         return relevantTime is not null && relevantTime >= start && relevantTime <= end;
     }
+
+    private static bool IsUpcomingCandidate(MatchRecord match, DateTimeOffset now) =>
+        match.ScheduledAt is { } scheduledAt
+        && scheduledAt >= now
+        && string.Equals(match.Status, "not_started", StringComparison.OrdinalIgnoreCase)
+        && match.Opponents.Any(opponent => opponent.TeamId == MatchFactsCalculator.AstralisTeamId)
+        && match.Opponents.Count(opponent => opponent.TeamId is > 0 and not MatchFactsCalculator.AstralisTeamId) == 1;
 }

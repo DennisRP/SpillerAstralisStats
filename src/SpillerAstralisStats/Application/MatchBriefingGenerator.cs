@@ -31,15 +31,14 @@ internal sealed class MatchBriefingGenerator(IMatchBriefingClient client)
     };
 
     public async Task<MatchBriefingResult> GenerateAsync(
-        MatchFactsSnapshot facts,
+        GroundedMatchBriefingContext grounding,
         CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(facts);
+        ArgumentNullException.ThrowIfNull(grounding);
 
-        var input = MatchBriefingInputMapper.Map(facts);
         var request = new MatchBriefingModelRequest(
             MatchBriefingContract.DeveloperInstruction,
-            JsonSerializer.Serialize(input, InputJsonOptions),
+            JsonSerializer.Serialize(grounding, InputJsonOptions),
             MatchBriefingContract.SchemaName,
             MatchBriefingContract.JsonSchema);
         var response = await client.GenerateAsync(request, cancellationToken);
@@ -77,7 +76,8 @@ internal sealed class MatchBriefingGenerator(IMatchBriefingClient client)
         return new MatchBriefingResult(
             briefing,
             MatchBriefingContract.PromptVersion,
-            MatchBriefingContract.SchemaVersion);
+            MatchBriefingContract.SchemaVersion,
+            grounding);
     }
 }
 

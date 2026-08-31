@@ -22,7 +22,7 @@ public sealed class PandaScoreMatchIngestionServiceTests
             return query == "?page=1&per_page=100"
                 ? Response("[{\"id\":1,\"begin_at\":\"2026-08-20T12:00:00Z\",\"status\":\"finished\",\"winner_id\":3209,\"opponents\":[{\"opponent\":{\"id\":456,\"name\":\"G2\"}}],\"results\":[{\"team_id\":3209,\"score\":2}],\"number_of_games\":3,\"league\":{\"id\":7,\"name\":\"League\"},\"tournament\":{\"name\":\"Event\",\"prizepool\":\"2,000,000 United States Dollar\"}}]")
                 : query == "?page=2&per_page=100"
-                    ? Response("[{\"id\":1,\"begin_at\":\"2026-08-20T12:00:00Z\"},{\"id\":2,\"scheduled_at\":\"2026-08-27T12:00:00Z\"},{\"id\":3},{\"id\":4,\"begin_at\":\"2025-01-01T12:00:00Z\"}]")
+                    ? Response("[{\"id\":1,\"begin_at\":\"2026-08-20T12:00:00Z\"},{\"id\":2,\"scheduled_at\":\"2026-08-27T12:00:00Z\",\"status\":\"not_started\",\"opponents\":[{\"opponent\":{\"id\":3209,\"name\":\"Astralis\"}},{\"opponent\":{\"id\":456,\"name\":\"G2\"}}]},{\"id\":3},{\"id\":4,\"begin_at\":\"2025-01-01T12:00:00Z\"}]")
                     : Response("[]");
         });
         var options = Options(new PandaScoreOptions { ApiKey = "test-secret" });
@@ -37,6 +37,31 @@ public sealed class PandaScoreMatchIngestionServiceTests
         Assert.Equal("G2", Assert.Single(match.Opponents).Name);
         Assert.Equal(2, Assert.Single(match.Scores).Score);
         Assert.Equal("2,000,000 United States Dollar", match.Tournament?.PrizePool);
+        Assert.Equal(2, Assert.Single(result.UpcomingMatches).ProviderId);
+    }
+
+    [Fact]
+    public async Task Retains_only_valid_upcoming_candidates_separately_from_historical_matches()
+    {
+        var handler = new StubHttpMessageHandler(request => request.RequestUri?.Query == "?page=1&per_page=100"
+            ? Response("""
+                [
+                  {"id":10,"scheduled_at":"2026-08-26T12:00:00Z","status":"not_started","opponents":[{"opponent":{"id":3209,"name":"Astralis"}},{"opponent":{"id":456,"name":"G2"}}]},
+                  {"id":11,"scheduled_at":"2026-08-27T12:00:00Z","status":"canceled","opponents":[{"opponent":{"id":3209}},{"opponent":{"id":456}}]},
+                  {"id":12,"scheduled_at":"2026-08-27T12:00:00Z","opponents":[{"opponent":{"id":3209}},{"opponent":{"id":456}}]},
+                  {"id":13,"scheduled_at":"2026-08-27T12:00:00Z","status":"not_started","opponents":[{"opponent":{"id":3209}}]},
+                  {"id":14,"begin_at":"2026-08-20T12:00:00Z","status":"finished","opponents":[{"opponent":{"id":3209}},{"opponent":{"id":789}}]}
+                ]
+                """)
+            : Response("[]"));
+        var options = Options(new PandaScoreOptions { ApiKey = "test-secret" });
+        var client = new PandaScoreMatchClient(new HttpClient(handler) { BaseAddress = new("https://api.pandascore.co/") }, options);
+        var service = new PandaScoreMatchIngestionService(client, options, new FixedTimeProvider(Now));
+
+        var result = await service.IngestAsync(CancellationToken.None);
+
+        Assert.Equal(10, Assert.Single(result.UpcomingMatches).ProviderId);
+        Assert.Equal(14, Assert.Single(result.Matches).ProviderId);
     }
 
     [Fact]

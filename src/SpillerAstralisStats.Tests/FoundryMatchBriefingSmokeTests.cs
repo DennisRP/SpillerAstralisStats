@@ -32,7 +32,7 @@ public sealed class FoundryMatchBriefingSmokeTests(ITestOutputHelper output)
         var client = new FoundryMatchBriefingClient(Options.Create(options));
         var generator = new MatchBriefingGenerator(client);
 
-        var result = await generator.GenerateAsync(FixedFacts(), CancellationToken.None);
+        var result = await generator.GenerateAsync(FixedGrounding(), CancellationToken.None);
 
         MatchBriefingValidator.Validate(result.Briefing);
         Assert.Equal(MatchBriefingContract.PromptVersion, result.PromptVersion);
@@ -42,6 +42,9 @@ public sealed class FoundryMatchBriefingSmokeTests(ITestOutputHelper output)
         output.WriteLine($"Key points: {string.Join(" | ", result.Briefing.KeyPoints)}");
         output.WriteLine($"Prompt version: {result.PromptVersion}");
         output.WriteLine($"Schema version: {result.SchemaVersion}");
+        output.WriteLine($"Grounding version: {result.Grounding.GroundingVersion}");
+        output.WriteLine($"Target: Astralis vs {result.Grounding.Target.OpponentName} at {result.Grounding.Target.ScheduledAt:O}");
+        output.WriteLine($"Evidence IDs: {string.Join(", ", result.Grounding.EvidenceMatchProviderIds)}");
     }
 
     private static MatchFactsSnapshot FixedFacts()
@@ -77,5 +80,16 @@ public sealed class FoundryMatchBriefingSmokeTests(ITestOutputHelper output)
             [recentWin, latestMeeting],
             new RecentFormFacts([MatchOutcome.Win, MatchOutcome.Loss], 1, 1, 0, 50m),
             new HeadToHeadFacts(456, "G2", 1, 0, 1, 0, [latestMeeting], latestMeeting));
+    }
+
+    private static GroundedMatchBriefingContext FixedGrounding()
+    {
+        var facts = FixedFacts();
+        return new GroundedMatchBriefingContext(
+            GroundedMatchBriefingBuilder.GroundingVersion,
+            new GroundedMatchTarget(2001, new DateTimeOffset(2026, 8, 28, 18, 0, 0, TimeSpan.Zero), 456, "G2", null, null, null),
+            MatchBriefingInputMapper.Map(facts),
+            new DateTimeOffset(2026, 8, 26, 12, 0, 0, TimeSpan.Zero),
+            [1001, 1002]);
     }
 }

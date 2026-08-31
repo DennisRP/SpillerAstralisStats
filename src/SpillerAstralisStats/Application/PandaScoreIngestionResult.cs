@@ -18,8 +18,19 @@ public sealed record PandaScoreIngestionResult(
     IngestionFailureCategory FailureCategory = IngestionFailureCategory.None,
     string? FailureMessage = null)
 {
+    public IReadOnlyList<MatchRecord> UpcomingMatches { get; init; } = [];
+
     public static PandaScoreIngestionResult Success(IReadOnlyList<MatchRecord> matches, int lookbackMonths) =>
         new(true, matches, lookbackMonths);
+
+    public static PandaScoreIngestionResult Success(
+        IReadOnlyList<MatchRecord> matches,
+        IReadOnlyList<MatchRecord> upcomingMatches,
+        int lookbackMonths) =>
+        new(true, matches, lookbackMonths)
+        {
+            UpcomingMatches = upcomingMatches
+        };
 
     public static PandaScoreIngestionResult Failure(IngestionFailureCategory category, string message, int lookbackMonths) =>
         new(false, [], lookbackMonths, category, message);

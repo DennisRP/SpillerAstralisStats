@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Text.Json;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 using SpillerAstralisStats;
@@ -14,12 +15,18 @@ public sealed class DailyStatsFunctionTests
     public async Task Run_logs_greeting_and_ingestion_summary()
     {
         var logger = new TestLogger<DailyStatsFunction>();
-        var ingestion = new StubIngestionService(PandaScoreIngestionResult.Success(
-            [new MatchRecord(1, new DateTimeOffset(2026, 8, 20, 12, 0, 0, TimeSpan.Zero), null, null, "finished", 3209, [new OpponentRecord(3209, "Astralis"), new OpponentRecord(456, "G2")], [new ScoreRecord(3209, 2), new ScoreRecord(456, 0)], 3, "best_of", null, null, null, [], null)], 12));
+        var historical = new MatchRecord(1, new DateTimeOffset(2026, 8, 20, 12, 0, 0, TimeSpan.Zero), null, null, "finished", 3209, [new OpponentRecord(3209, "Astralis"), new OpponentRecord(456, "G2")], [new ScoreRecord(3209, 2), new ScoreRecord(456, 0)], 3, "best_of", null, null, null, [], null);
+        var upcoming = new MatchRecord(2, new DateTimeOffset(2026, 8, 28, 12, 0, 0, TimeSpan.Zero), null, null, "not_started", null, [new OpponentRecord(3209, "Astralis"), new OpponentRecord(456, "G2")], [], 3, "best_of", null, null, null, [], null);
+        var ingestion = new StubIngestionService(PandaScoreIngestionResult.Success([historical], [upcoming], 12));
         var outputPath = Path.Combine(Path.GetTempPath(), $"spiller-function-test-{Guid.NewGuid():N}");
         var function = new DailyStatsFunction(logger, ingestion, Publisher(outputPath));
 
-        try { await function.Run(null!, CancellationToken.None); }
+        try
+        {
+            await function.Run(null!, CancellationToken.None);
+            using var matches = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(outputPath, "matches.json")));
+            Assert.Equal(1, Assert.Single(matches.RootElement.EnumerateArray()).GetProperty("providerId").GetInt64());
+        }
         finally { if (Directory.Exists(outputPath)) Directory.Delete(outputPath, true); }
 
         Assert.Contains("Hello World", logger.Messages);

@@ -13,22 +13,26 @@ public sealed class MatchBriefingGeneratorTests
             null));
         var generator = new MatchBriefingGenerator(client);
 
-        var result = await generator.GenerateAsync(Facts(), CancellationToken.None);
+        var result = await generator.GenerateAsync(Grounding(), CancellationToken.None);
 
         Assert.Equal(MatchBriefingContract.DeveloperInstruction, client.Request?.Instructions);
         Assert.Equal(MatchBriefingContract.SchemaName, client.Request?.SchemaName);
         Assert.Equal(MatchBriefingContract.JsonSchema, client.Request?.JsonSchema);
         Assert.Equal(MatchBriefingContract.PromptVersion, result.PromptVersion);
         Assert.Equal(MatchBriefingContract.SchemaVersion, result.SchemaVersion);
+        Assert.Equal(GroundedMatchBriefingBuilder.GroundingVersion, result.Grounding.GroundingVersion);
         Assert.Equal("Astralis møder G2 igen", result.Briefing.Headline);
         Assert.Equal("Historikken viser tætte opgør.", result.Briefing.Summary);
         Assert.Equal(new[] { "G2 vandt det seneste møde 2-1." }, result.Briefing.KeyPoints);
 
         using var input = JsonDocument.Parse(Assert.IsType<string>(client.Request?.InputJson));
-        Assert.Equal(3, input.RootElement.GetProperty("recentForm").GetProperty("wins").GetInt32());
-        Assert.Equal(2, input.RootElement.GetProperty("recentForm").GetProperty("losses").GetInt32());
-        Assert.Equal(456, input.RootElement.GetProperty("headToHead").GetProperty("opponentTeamId").GetInt64());
-        Assert.Equal("loss", input.RootElement.GetProperty("headToHead").GetProperty("latestMeeting").GetProperty("outcome").GetString());
+        Assert.Equal(GroundedMatchBriefingBuilder.GroundingVersion, input.RootElement.GetProperty("groundingVersion").GetString());
+        Assert.Equal(999, input.RootElement.GetProperty("target").GetProperty("providerId").GetInt64());
+        Assert.Equal(3, input.RootElement.GetProperty("evidence").GetProperty("recentForm").GetProperty("wins").GetInt32());
+        Assert.Equal(2, input.RootElement.GetProperty("evidence").GetProperty("recentForm").GetProperty("losses").GetInt32());
+        Assert.Equal(456, input.RootElement.GetProperty("evidence").GetProperty("headToHead").GetProperty("opponentTeamId").GetInt64());
+        Assert.Equal("loss", input.RootElement.GetProperty("evidence").GetProperty("headToHead").GetProperty("latestMeeting").GetProperty("outcome").GetString());
+        Assert.Equal(42, Assert.Single(input.RootElement.GetProperty("evidenceMatchProviderIds").EnumerateArray()).GetInt64());
     }
 
     [Fact]
@@ -37,7 +41,7 @@ public sealed class MatchBriefingGeneratorTests
         var generator = new MatchBriefingGenerator(new StubClient(new MatchBriefingModelResponse(null, "Cannot comply")));
 
         var exception = await Assert.ThrowsAsync<MatchBriefingRefusalException>(
-            () => generator.GenerateAsync(Facts(), CancellationToken.None));
+            () => generator.GenerateAsync(Grounding(), CancellationToken.None));
 
         Assert.Contains("Cannot comply", exception.Message, StringComparison.Ordinal);
     }
@@ -52,7 +56,7 @@ public sealed class MatchBriefingGeneratorTests
         var generator = new MatchBriefingGenerator(new StubClient(new MatchBriefingModelResponse(output, null)));
 
         await Assert.ThrowsAsync<MatchBriefingOutputException>(
-            () => generator.GenerateAsync(Facts(), CancellationToken.None));
+            () => generator.GenerateAsync(Grounding(), CancellationToken.None));
     }
 
     [Fact]
@@ -61,7 +65,7 @@ public sealed class MatchBriefingGeneratorTests
         var generator = new MatchBriefingGenerator(new StubClient(new MatchBriefingModelResponse(" ", null)));
 
         await Assert.ThrowsAsync<MatchBriefingOutputException>(
-            () => generator.GenerateAsync(Facts(), CancellationToken.None));
+            () => generator.GenerateAsync(Grounding(), CancellationToken.None));
     }
 
     [Fact]
@@ -73,7 +77,7 @@ public sealed class MatchBriefingGeneratorTests
         cancellation.Cancel();
 
         var exception = await Assert.ThrowsAnyAsync<OperationCanceledException>(
-            () => generator.GenerateAsync(Facts(), cancellation.Token));
+            () => generator.GenerateAsync(Grounding(), cancellation.Token));
 
         Assert.Equal(cancellation.Token, client.ReceivedToken);
         Assert.Equal(cancellation.Token, exception.CancellationToken);
@@ -99,6 +103,17 @@ public sealed class MatchBriefingGeneratorTests
             [match],
             new RecentFormFacts([MatchOutcome.Win, MatchOutcome.Win, MatchOutcome.Win, MatchOutcome.Loss, MatchOutcome.Loss], 3, 2, 0, 60m),
             new HeadToHeadFacts(456, "G2", 1, 0, 1, 0, [match], match));
+    }
+
+    private static GroundedMatchBriefingContext Grounding()
+    {
+        var facts = Facts();
+        return new GroundedMatchBriefingContext(
+            GroundedMatchBriefingBuilder.GroundingVersion,
+            new GroundedMatchTarget(999, new DateTimeOffset(2026, 9, 1, 18, 0, 0, TimeSpan.Zero), 456, "G2", null, null, null),
+            MatchBriefingInputMapper.Map(facts),
+            new DateTimeOffset(2026, 8, 26, 12, 0, 0, TimeSpan.Zero),
+            [42]);
     }
 
     private sealed class StubClient(MatchBriefingModelResponse response) : IMatchBriefingClient

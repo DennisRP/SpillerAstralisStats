@@ -2,12 +2,12 @@ using SpillerAstralisStats.Domain;
 
 namespace SpillerAstralisStats.Application;
 
-internal sealed record MatchBriefingInput(
+public sealed record MatchBriefingInput(
     IReadOnlyList<MatchBriefingMatchFacts> RecentMatches,
     MatchBriefingRecentFormFacts RecentForm,
     MatchBriefingHeadToHeadFacts HeadToHead);
 
-internal sealed record MatchBriefingMatchFacts(
+public sealed record MatchBriefingMatchFacts(
     long ProviderId,
     DateTimeOffset RelevantAt,
     long OpponentTeamId,
@@ -21,14 +21,14 @@ internal sealed record MatchBriefingMatchFacts(
     MatchBriefingCompetitionFacts? Tournament,
     bool? IsSweep);
 
-internal sealed record MatchBriefingRecentFormFacts(
+public sealed record MatchBriefingRecentFormFacts(
     IReadOnlyList<string> Outcomes,
     int Wins,
     int Losses,
     int Unknown,
     decimal? WinPercentage);
 
-internal sealed record MatchBriefingHeadToHeadFacts(
+public sealed record MatchBriefingHeadToHeadFacts(
     long OpponentTeamId,
     string? OpponentName,
     int Meetings,
@@ -38,7 +38,7 @@ internal sealed record MatchBriefingHeadToHeadFacts(
     IReadOnlyList<MatchBriefingMatchFacts> Matches,
     MatchBriefingMatchFacts? LatestMeeting);
 
-internal sealed record MatchBriefingCompetitionFacts(
+public sealed record MatchBriefingCompetitionFacts(
     long? ProviderId,
     string? Name,
     string? Tier,
@@ -53,7 +53,8 @@ public sealed record MatchBriefing(
 public sealed record MatchBriefingResult(
     MatchBriefing Briefing,
     string PromptVersion,
-    string SchemaVersion);
+    string SchemaVersion,
+    GroundedMatchBriefingContext Grounding);
 
 internal static class MatchBriefingInputMapper
 {
@@ -96,7 +97,7 @@ internal static class MatchBriefingInputMapper
 
     private static string MapOutcome(MatchOutcome outcome) => outcome.ToString().ToLowerInvariant();
 
-    private static MatchBriefingCompetitionFacts? MapCompetition(CompetitionRecord? source) => source is null
+    internal static MatchBriefingCompetitionFacts? MapCompetition(CompetitionRecord? source) => source is null
         ? null
         : new MatchBriefingCompetitionFacts(
             source.ProviderId,

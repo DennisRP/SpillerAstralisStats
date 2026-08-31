@@ -49,6 +49,26 @@ These stages have different responsibilities:
 
 The model therefore chooses wording and emphasis; it does not calculate statistics. Prompt version `match-briefing-prompt-v1` and schema version `match-briefing-schema-v1` are attached by the application after validation.
 
+## Grounded match briefing
+
+The next milestone adds the retrieval and evidence-selection step before the existing model call:
+
+```text
+PandaScore match response
+    -> historical matches + eligible upcoming candidates
+    -> deterministic selection of the next Astralis match
+    -> recent form + head-to-head facts from historical matches only
+    -> versioned grounding record with target, evidence, reference time, and evidence IDs
+    -> Microsoft Foundry
+    -> validated Danish MatchBriefingResult with the same grounding record
+```
+
+This is a useful AI-engineering boundary. C# selects the target and calculates every statistic. The model receives the complete serialized grounding record and can only choose wording and emphasis from its supplied target and historical evidence. It must not add outside facts, calculate statistics, or predict a winner.
+
+The grounding record is returned unchanged with the briefing. It contains the selected target, the historical evidence, a grounding version, the reference time, and unique evidence match IDs in ascending order. That means a developer can inspect exactly what the model was given before judging whether its wording is grounded.
+
+Only a `not_started` Astralis match with a scheduled time at or after the selection time and exactly one opponent is eligible. Historical static data continues to use the separate historical collection, so future matches do not appear in `matches.json` or influence the published statistics.
+
 ### Configure Microsoft Foundry locally
 
 1. Create or select a Microsoft Foundry/Azure OpenAI resource and deploy a model that supports the Responses API and strict Structured Outputs. The deployment name is configuration and is not hardcoded.
@@ -70,7 +90,7 @@ The model therefore chooses wording and emphasis; it does not calculate statisti
 
 The endpoint must be an absolute HTTPS URL ending in `/openai/v1/`. The client uses `DefaultAzureCredential` and the Foundry scope `https://ai.azure.com/.default`; no API key is read or stored. Role assignments can take a few minutes to become effective.
 
-The live smoke test is opt-in and uses a fixed, non-sensitive facts fixture. For a one-off shell run, set process environment variables:
+The live smoke test is opt-in and uses a fixed, non-sensitive grounded fixture. It writes the selected target, grounding version, ordered evidence IDs, and the validated Danish briefing to the test output. For a one-off shell run, set process environment variables:
 
 ```powershell
 $env:Foundry__Endpoint = "https://<resource-name>.openai.azure.com/openai/v1/"
