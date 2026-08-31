@@ -12,7 +12,7 @@ The timer function logs `Hello World`, retrieves historical PandaScore matches, 
 
 ## Local development
 
-Install the .NET 8 SDK, Azure Functions Core Tools v4, and Azurite. Copy `src/SpillerAstralisStats/local.settings.json.example` to `src/SpillerAstralisStats/local.settings.json`, then start Azurite before running the Functions host.
+Install the .NET 8 SDK, Azure Functions Core Tools v4, and Azurite. Copy `src/SpillerAstralisStats/local.settings-example.json` to `src/SpillerAstralisStats/local.settings.json`, then start Azurite before running the Functions host.
 
 Set `PandaScore__ApiKey` in the local settings file (or as a deployed Function App setting). `PandaScore__BaseUrl` defaults to `https://api.pandascore.co/`, and `PandaScore__HistoryLookbackMonths` defaults to `12` and accepts values from `6` through `12`. The ingestion uses PandaScore team ID `3209` and does not persist data yet.
 
@@ -25,6 +25,64 @@ python -m http.server 8080 --directory dist
 ```
 
 Then open `http://localhost:8080/stats/`. The existing root site remains outside this directory; Azure Static Web App composition and deployment automation will be added separately.
+
+## First LLM integration
+
+The first LLM milestone is deliberately isolated from `DailyStatsFunction`, static data generation, and `/stats`. It proves this flow:
+
+```text
+deterministic MatchFactsSnapshot
+    -> serializable facts JSON
+    -> versioned editorial prompt
+    -> Microsoft Foundry Responses API
+    -> strict MatchBriefing JSON Schema
+    -> C# deserialization and application validation
+    -> MatchBriefingResult
+```
+
+These stages have different responsibilities:
+
+- The deterministic C# calculator owns numbers, outcomes, scores, dates, recent form, and head-to-head facts.
+- The prompt tells the model to write in Danish, use only supplied facts, omit unsupported conclusions, and avoid predictions.
+- Strict Structured Outputs constrain the JSON shape to `headline`, `summary`, and `keyPoints` with no additional properties.
+- C# validation rejects blank or overlong text and an invalid number of key points even when the JSON shape is correct.
+
+The model therefore chooses wording and emphasis; it does not calculate statistics. Prompt version `match-briefing-prompt-v1` and schema version `match-briefing-schema-v1` are attached by the application after validation.
+
+### Configure Microsoft Foundry locally
+
+1. Create or select a Microsoft Foundry/Azure OpenAI resource and deploy a model that supports the Responses API and strict Structured Outputs. The deployment name is configuration and is not hardcoded.
+2. On the Azure OpenAI resource, grant your developer identity the `Cognitive Services OpenAI User` role. `Cognitive Services OpenAI Contributor` also permits inference but grants broader access.
+3. Install the [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli-windows) if needed, then sign in locally:
+
+   ```powershell
+   az login
+   ```
+
+4. Add these non-secret settings to `src/SpillerAstralisStats/local.settings.json`:
+
+   ```json
+   {
+     "Foundry__Endpoint": "https://<resource-name>.openai.azure.com/openai/v1/",
+     "Foundry__DeploymentName": "<deployment-name>"
+   }
+   ```
+
+The endpoint must be an absolute HTTPS URL ending in `/openai/v1/`. The client uses `DefaultAzureCredential` and the Foundry scope `https://ai.azure.com/.default`; no API key is read or stored. Role assignments can take a few minutes to become effective.
+
+The live smoke test is opt-in and uses a fixed, non-sensitive facts fixture. For a one-off shell run, set process environment variables:
+
+```powershell
+$env:Foundry__Endpoint = "https://<resource-name>.openai.azure.com/openai/v1/"
+$env:Foundry__DeploymentName = "<deployment-name>"
+$env:RUN_FOUNDRY_SMOKE_TEST = "true"
+dotnet test src/SpillerAstralisStats.Tests/SpillerAstralisStats.Tests.csproj --filter "Category=Integration"
+Remove-Item Env:RUN_FOUNDRY_SMOKE_TEST, Env:Foundry__Endpoint, Env:Foundry__DeploymentName
+```
+
+For debugging from an IDE without setting environment variables first, set `RUN_FOUNDRY_SMOKE_TEST` to `true` in the ignored `src/SpillerAstralisStats/local.settings.json` file alongside `Foundry__Endpoint` and `Foundry__DeploymentName`, then debug the smoke test from the test explorer. The test reads the `Values` object from the copy of that file in its output directory. Process environment variables take precedence when both sources contain a value.
+
+Without `RUN_FOUNDRY_SMOKE_TEST=true` in either source, the test returns before resolving the Foundry client and makes no network call. Normal `dotnet test` therefore does not require Azure access or generate model cost. Remember to set the local opt-in back to `false` after debugging; leaving it enabled makes every matching local test run call the model. See the Microsoft documentation for the [Responses API](https://learn.microsoft.com/en-us/azure/foundry/openai/how-to/responses) and [Entra role setup](https://learn.microsoft.com/en-us/azure/foundry-classic/openai/how-to/managed-identity).
 
 ```powershell
 dotnet restore SpillerAstralisStats.sln

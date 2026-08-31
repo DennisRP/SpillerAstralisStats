@@ -7,6 +7,9 @@
     "PandaScore__ApiKey": "",
     "PandaScore__HistoryLookbackMonths": "12",
     "StaticStats__OutputPath": "../../../../../dist/stats/data",
-    "StaticStats__RecentMatchCount": "5"
+    "StaticStats__RecentMatchCount": "5",
+    "Foundry__Endpoint": "https://<resource-name>.openai.azure.com/openai/v1/",
+    "Foundry__DeploymentName": "<deployment-name>",
+    "RUN_FOUNDRY_SMOKE_TEST": "false"
   }
 }

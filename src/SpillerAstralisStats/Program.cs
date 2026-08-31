@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using SpillerAstralisStats.Application;
 using SpillerAstralisStats.Configuration;
+using SpillerAstralisStats.Infrastructure.Foundry;
 using SpillerAstralisStats.Infrastructure.PandaScore;
 
 var host = new HostBuilder()
@@ -13,6 +14,7 @@ var host = new HostBuilder()
             .BindConfiguration(PandaScoreOptions.SectionName);
         services.AddOptions<StaticStatsOptions>()
             .BindConfiguration(StaticStatsOptions.SectionName);
+        services.AddMatchBriefing(context.Configuration);
         services.AddHttpClient<PandaScoreMatchClient>((serviceProvider, client) =>
         {
             client.BaseAddress = new Uri(
