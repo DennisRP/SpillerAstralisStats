@@ -10,7 +10,7 @@ namespace SpillerAstralisStats.Infrastructure.Foundry;
 
 #pragma warning disable OPENAI001 // The approved design explicitly uses the Responses API, which the SDK marks experimental.
 
-internal sealed class FoundryMatchBriefingClient : IMatchBriefingClient
+internal sealed class FoundryMatchBriefingClient : IStructuredOutputClient, IMatchBriefingClient
 {
     internal const string AuthenticationScope = "https://ai.azure.com/.default";
 
@@ -41,6 +41,16 @@ internal sealed class FoundryMatchBriefingClient : IMatchBriefingClient
 
     public async Task<MatchBriefingModelResponse> GenerateAsync(
         MatchBriefingModelRequest request,
+        CancellationToken cancellationToken)
+    {
+        var response = await GenerateAsync(
+            new StructuredOutputRequest(request.Instructions, request.InputJson, request.SchemaName, request.JsonSchema),
+            cancellationToken);
+        return new MatchBriefingModelResponse(response.OutputText, response.Refusal);
+    }
+
+    public async Task<StructuredOutputResponse> GenerateAsync(
+        StructuredOutputRequest request,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -76,7 +86,7 @@ internal sealed class FoundryMatchBriefingClient : IMatchBriefingClient
                 .FirstOrDefault(part => part.Kind == ResponseContentPartKind.Refusal)
                 ?.Refusal;
 
-            return new MatchBriefingModelResponse(response.GetOutputText(), refusal);
+            return new StructuredOutputResponse(response.GetOutputText(), refusal);
         }
         catch (ClientResultException exception)
         {

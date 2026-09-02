@@ -1,0 +1,16 @@
+[
+  {
+    "queryId": "synthetic-g2-recap",
+    "question": "What does the synthetic recap say about G2?",
+    "expectsSupport": true,
+    "relevantDocumentIds": ["synthetic-astralis-g2-recap"],
+    "relevantChunkIds": []
+  },
+  {
+    "queryId": "unsupported",
+    "question": "Xylophonic nebula",
+    "expectsSupport": false,
+    "relevantDocumentIds": [],
+    "relevantChunkIds": []
+  }
+]

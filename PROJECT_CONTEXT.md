@@ -8,7 +8,7 @@ This project is intentionally separate from the existing `spillerastralis.dk` li
 
 The main purpose is to gain practical AI engineering experience by building a real, small feature around Astralis CS2 match data.
 
-The project should be pragmatic, cheap to run, easy to explain in a job interview, and focused on learning:
+The project should be pragmatic, cheap to run, easy to understand, and focused on learning:
 
 * LLM integration
 * grounded generation
@@ -236,7 +236,24 @@ The LLM should not invent or infer unsupported facts.
 
 ## Retrieval strategy
 
-Do not add vector search merely because this is an AI/RAG project.
+RAG does not require a vector database. RAG is the complete pattern of retrieving
+relevant external evidence, supplying that evidence to the model, and generating an
+answer grounded in it. Keyword search, BM25, deterministic filtering, SQL, and vector
+similarity are all possible retrieval mechanisms.
+
+Do not add vector search merely because this is an AI/RAG project. The immediate
+learning milestone uses a small, manually curated corpus of unstructured Counter-Strike
+articles stored as Markdown and an in-memory lexical retriever. This keeps the work
+focused on the important RAG boundaries:
+
+```text
+source documents
+    -> deterministic chunking
+    -> relevance-ranked retrieval
+    -> retrieved passages with source IDs
+    -> grounded structured generation
+    -> citation and retrieval evaluation
+```
 
 For structured match data, deterministic retrieval is preferable.
 
@@ -253,14 +270,23 @@ This can initially be done in memory over fetched PandaScore data.
 
 If persistence is later required, relational querying would be appropriate.
 
-Vector/semantic retrieval should only be added when there is genuinely unstructured content, e.g.:
+The article corpus is genuinely unstructured content, but the first retrieval baseline
+should still be lexical. Embeddings and vector search become a later comparison when
+there is time to measure whether they improve retrieval quality. They are not required
+to call the first implementation RAG.
+
+Potential unstructured sources include:
 
 * articles
 * match reports
 * written analysis
 * external text sources
 
-A good future architecture may use both deterministic structured retrieval and semantic retrieval.
+A good future architecture may use deterministic match retrieval, lexical article
+retrieval, and semantic retrieval together. Mixed English and Danish articles are a
+known limitation for lexical search; either keep the first corpus primarily in one
+language, add a small explicit synonym list, or record this as a future reason to test
+multilingual embeddings.
 
 ---
 
@@ -299,6 +325,106 @@ Possible later persistent data:
 * external article data
 * retrieval provenance
 * latency/cost metrics
+
+The immediate RAG corpus is file-based, not database-backed. Real copied article text
+is local development material and MUST NOT be published in `dist` or committed to a
+public repository. The implementation milestone should use these locations:
+
+```text
+/content/rag/articles/             # real local Markdown corpus; Git-ignored
+/content/rag/examples/             # optional synthetic, redistributable examples
+/src/SpillerAstralisStats.Tests/Fixtures/Articles/
+                                  # synthetic deterministic test fixtures
+```
+
+The implementation MUST add the real corpus path to `.gitignore` before real article
+text is stored there. Generated chunks are derived data and should be regenerated from
+the Markdown sources rather than edited manually.
+
+### Developer guide: add an article to the local RAG corpus
+
+#### 1. Select and persist the source document
+
+Choose a relevant article from a CS2 news site. Keep the initial
+corpus intentionally small: approximately 6-10 articles that overlap across opponents,
+roster changes, tournaments, and match recaps. Overlap makes retrieval evaluation
+meaningful.
+
+Save one article per file under `content/rag/articles/`. Use a stable descriptive file
+name, for example:
+
+```text
+content/rag/articles/cs2-news-astralis-g2-recap-2026-08-20.md
+```
+
+Do not combine multiple articles in one file. Do not publish the copied text in static
+assets. Retain the original source URL, and only store material that may lawfully be
+used for this private learning prototype. If the repository or demonstration artifacts
+will be shared, use short permitted excerpts, personal notes, or synthetic fixtures
+instead of redistributing complete articles.
+
+#### 2. Add metadata and preserve the article structure
+
+Start every Markdown file with this front matter:
+
+```markdown
+---
+documentId: cs2-news-astralis-g2-recap-2026-08-20
+title: <original article title>
+source: <CS2 news site>
+sourceUrl: https://<source-domain>/<original-path>
+publishedAt: 2026-08-20
+language: en
+tags: [astralis, g2, <tournament>]
+---
+
+<article text with original headings and paragraph boundaries preserved>
+```
+
+Use the source's factual name and the relevant language code, such as `da` for Danish
+articles. Metadata values must be factual and copied from the source. Remove navigation,
+advertisements, comments, image captions that add no evidence, and unrelated recommended
+links.
+
+Do not manually split the article into chunk files. The source document should remain
+readable. The application will deterministically group headings and complete paragraphs
+into chunks of roughly 150-300 words, avoid splitting short articles unnecessarily,
+and assign stable IDs such as:
+
+```text
+cs2-news-astralis-g2-recap-2026-08-20#chunk-01
+```
+
+#### 3. Build, inspect, and evaluate the derived corpus
+
+After adding or changing an article, run the corpus-build entry point introduced by the
+RAG milestone. The OpenSpec change that implements this milestone MUST define and
+document one explicit local command for this operation; do not require a database or a
+live model call merely to parse and retrieve documents.
+
+The corpus build must:
+
+1. validate required front matter and report the source file for any error;
+2. generate chunks deterministically and report document/chunk counts;
+3. preserve document ID, chunk ID, title, source URL, publication date, language, and
+   tags on every chunk;
+4. run the deterministic retrieval evaluation set without calling Foundry; and
+5. make the top retrieved chunks and scores inspectable before they are sent to the
+   model.
+
+Then run the normal solution build and tests. For the demonstration, use the prepared
+local corpus and show this trace for one query:
+
+```text
+question
+    -> ranked chunk IDs and scores
+    -> exact passages supplied to the model
+    -> structured answer with citations
+    -> validation that every citation belongs to the retrieved set
+```
+
+The live model call remains optional. Retrieval and citation-contract tests must be
+deterministic and runnable without network access or model cost.
 
 ---
 
@@ -414,7 +540,7 @@ Avoid:
 * unnecessary Azure services
 * infrastructure added mainly for architectural appearance
 
-This is both a learning project and a portfolio/job-interview project, not a commercial service that needs enterprise-scale infrastructure.
+This is a learning project, not a commercial service that needs enterprise-scale infrastructure.
 
 ---
 
@@ -490,35 +616,45 @@ briefing.json
 
 and display it on `/stats`.
 
-### Milestone 7 – Reliability
+### Milestone 7 – Article RAG and retrieval evals
 
-Add:
+This is the immediate next priority. Keep the implementation focused on the smallest
+coherent RAG path that demonstrates retrieval, provenance, grounded generation, and
+evaluation.
 
-* timeout handling
-* invalid structured output handling
-* retries only where appropriate
-* fallback behavior
-* logging
-* model name
-* latency
-* token usage where available
-* prompt/schema version
+Build:
 
-### Milestone 8 – Evals
+* a manually curated Markdown corpus of 6-10 relevant articles;
+* deterministic Markdown validation and paragraph-aware chunking;
+* an in-memory lexical retriever with inspectable scores and top-K results;
+* a small fixed evaluation set with expected relevant document/chunk IDs;
+* retrieval metrics such as Recall@3 and reciprocal rank;
+* a versioned RAG prompt that receives only the selected chunks;
+* structured output containing editorial text and cited chunk IDs;
+* validation that citations refer only to chunks supplied to the model; and
+* an insufficient-context result when retrieval does not support an answer.
 
-Create a small evaluation suite.
+The generated RAG context must retain source URL, document ID, chunk ID, publication
+date, retrieval score/rank, and retriever/chunker version. Real article text must not be
+included in public static output.
 
-Possible eval cases:
+### Milestone 8 – Demonstration and focused reliability
 
-* correct latest meeting retrieved
-* correct head-to-head facts
-* no unsupported factual claims
-* valid output schema
-* requested question actually answered
-* latency
-* approximate cost
+Prepare a concise technical demonstration that can explain and show:
 
-This is an important part of the learning objective.
+* why deterministic PandaScore retrieval and unstructured article retrieval are
+  separate paths;
+* how one Markdown article becomes stable retrieval chunks;
+* how a question produces ranked passages;
+* how retrieval failure differs from generation failure;
+* how citation validation constrains the model;
+* how Recall@K evaluates retrieval independently from generated prose; and
+* why embeddings, vector storage, hybrid search, and reranking are justified future
+  experiments rather than prerequisites for RAG.
+
+Only add reliability work needed to keep this path demonstrable: safe failure states,
+no live calls in normal tests, version metadata, and useful non-sensitive logs. Broader
+retry policies, latency/token telemetry, and production hardening remain later work.
 
 ---
 
@@ -532,10 +668,11 @@ Do not implement these until useful:
 * Azure SQL
 * PostgreSQL/pgvector
 * Azure AI Search
-* article ingestion
 * embeddings
 * hybrid retrieval
 * semantic search
+* approximate nearest-neighbor indexing
+* automated article crawling or synchronization
 * MCP/tool calling
 * interactive question answering
 

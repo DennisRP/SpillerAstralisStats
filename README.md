@@ -129,3 +129,85 @@ func start --script-root src/SpillerAstralisStats
 ```
 
 `local.settings.json` is local-only and ignored by Git. Do not commit secrets.
+
+## Article RAG learning corpus
+
+The article RAG path is deliberately separate from PandaScore statistics. PandaScore
+remains the source of deterministic match facts; local Markdown articles provide
+unstructured editorial evidence that can be retrieved, inspected, and later cited by
+an LLM. The first retriever is an in-memory BM25 lexical baseline—there are no
+embeddings, vector database, crawler, or model call in the corpus-build command.
+
+Real article copies are private learning input. Before adding them, keep these paths
+local and uncommitted:
+
+```text
+content/rag/articles/
+content/rag/evaluations.local.json
+```
+
+Do not copy article text or derived chunks into `dist`. For committed examples and
+tests, use synthetic text, personal notes, or short redistributable excerpts. Clean
+sources by retaining the article title, headings, and paragraphs while removing site
+navigation, advertisements, comments, and unrelated links.
+
+Store one article per UTF-8 Markdown file using this exact constrained front matter:
+
+```markdown
+---
+documentId: cs2-news-astralis-g2-recap-2026-08-20
+title: Original article title
+source: CS2 news site
+sourceUrl: https://example.com/article-path
+publishedAt: 2026-08-20
+language: en
+tags: [astralis, g2, tournament-name]
+---
+
+# Original article title
+
+Article paragraphs remain readable source material.
+
+## Match development
+
+More complete paragraphs.
+```
+
+`documentId` and every tag must be lowercase kebab-case. `language` is initially
+`en` or `da`; dates use `yyyy-MM-dd`; URLs must be absolute HTTP or HTTPS addresses.
+The parser intentionally supports only scalar values and the inline tag list shown
+above, and rejects unknown front-matter fields so typos do not disappear silently.
+
+The application derives chunks; do not make chunk files manually. The chunker groups
+headings and complete paragraphs around a 150–300 word target, keeps an oversized
+single paragraph intact, and gives reproducible IDs such as
+`cs2-news-astralis-g2-recap-2026-08-20#chunk-01`. An edit near the beginning of an
+article can change later ordinal chunk IDs, so re-run retrieval evaluations and
+review any affected judgments after editing a source.
+
+Create a private `content/rag/evaluations.local.json` containing questions and their
+expected relevant document or chunk IDs. Include supported and unsupported questions;
+the latter reveal lexical false positives. Build and inspect the corpus without any
+external service:
+
+```powershell
+dotnet run --project src/SpillerAstralisStats.RagTool -- corpus build
+```
+
+For the committed synthetic demonstration, pass explicit paths:
+
+```powershell
+dotnet run --project src/SpillerAstralisStats.RagTool -- corpus build `
+  --content src/SpillerAstralisStats.Tests/Fixtures/Articles `
+  --evaluations src/SpillerAstralisStats.Tests/Fixtures/Articles/evaluations.json
+```
+
+The command prints document and chunk counts, the exact ranked passages and BM25
+scores, Recall@3, reciprocal rank, and unsupported-query outcomes. Evaluate this
+retrieval trace before judging generated prose. When article generation is later
+invoked explicitly, only retrieved chunks are sent to the model and every citation
+must identify one of those chunk IDs.
+
+For the first corpus lesson, when you have an article but have not created evaluation
+judgments yet, add `--skip-evaluations`. This validates the article and prints the
+derived chunk IDs, headings, and word counts without attempting retrieval evaluation.
