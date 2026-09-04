@@ -23,6 +23,15 @@ public sealed record ArticleRagAnswer(string State, string? Answer, IReadOnlyLis
 public sealed record ArticleRagGenerationResult(ArticleRagAnswer Answer, string PromptVersion, string SchemaVersion, ArticleRagContext Context);
 public sealed record ArticleRagOperationResult(string State, ArticleRagContext? Context, ArticleRagGenerationResult? Generation);
 
+public interface IArticleRagService
+{
+    Task<ArticleRagOperationResult> AnswerAsync(
+        IReadOnlyList<ArticleChunk> chunks,
+        string question,
+        int topK,
+        CancellationToken cancellationToken);
+}
+
 public static class ArticleRagContextBuilder
 {
     public static ArticleRagContext Create(string question, IReadOnlyList<ArticleRetrievalResult> results)
@@ -135,7 +144,7 @@ internal sealed class ArticleRagGenerator(IStructuredOutputClient client)
     }
 }
 
-internal sealed class ArticleRagService(ArticleBm25Retriever retriever, ArticleRagGenerator generator)
+internal sealed class ArticleRagService(ArticleBm25Retriever retriever, ArticleRagGenerator generator) : IArticleRagService
 {
     public async Task<ArticleRagOperationResult> AnswerAsync(IReadOnlyList<ArticleChunk> chunks, string question, int topK, CancellationToken cancellationToken)
     {

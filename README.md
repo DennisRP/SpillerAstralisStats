@@ -211,3 +211,32 @@ must identify one of those chunk IDs.
 For the first corpus lesson, when you have an article but have not created evaluation
 judgments yet, add `--skip-evaluations`. This validates the article and prints the
 derived chunk IDs, headings, and word counts without attempting retrieval evaluation.
+
+### Explicit article-answer demonstration
+
+After reviewing retrieval evaluations, inspect the exact RAG context for one question
+without a model call:
+
+```powershell
+dotnet run --project src/SpillerAstralisStats.RagTool -- article answer `
+  --question "Hvad blev resultatet på Nuke i finalen mellem MOUZ og Spirit?"
+```
+
+The command loads and validates the private corpus, prints the ranked passages, and
+prints the exact JSON context that would be supplied to the model. It does not resolve
+Foundry or make a network request unless `--use-foundry` is explicitly supplied.
+
+For an opt-in live demonstration, configure `Foundry__Endpoint` and
+`Foundry__DeploymentName` in the ignored `local.settings.json` as described above (or
+set them as process environment variables), then run:
+
+```powershell
+dotnet run --project src/SpillerAstralisStats.RagTool -- article answer `
+  --question "Hvad blev resultatet på Nuke i finalen mellem MOUZ og Spirit?" `
+  --use-foundry
+```
+
+The live command sends only the displayed top-three passages to Foundry. It prints the
+validated structured answer and its cited chunk IDs; C# rejects citations that do not
+belong to the supplied context. It does not publish article text or connect the result
+to `/stats`.

@@ -27,4 +27,5 @@ dist/stats/data/
 
 ## Private local RAG learning corpus
 content/rag/articles/
+content/rag/docs/
 content/rag/evaluations.local.json

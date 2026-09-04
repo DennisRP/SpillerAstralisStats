@@ -39,6 +39,21 @@ public sealed class FoundryServiceCollectionExtensionsTests
     }
 
     [Fact]
+    public void Explicit_article_RAG_registration_resolves_without_a_network_call()
+    {
+        var services = new ServiceCollection();
+
+        services.AddArticleRag(new SpillerAstralisStats.Configuration.FoundryOptions
+        {
+            Endpoint = "https://example-resource.openai.azure.com/openai/v1/",
+            DeploymentName = "article-rag-deployment"
+        });
+        using var provider = services.BuildServiceProvider();
+
+        Assert.NotNull(provider.GetRequiredService<IArticleRagService>());
+    }
+
+    [Fact]
     public void Daily_function_depends_on_the_grounded_briefing_boundary_not_the_model_client()
     {
         var constructor = Assert.Single(typeof(DailyStatsFunction).GetConstructors());
