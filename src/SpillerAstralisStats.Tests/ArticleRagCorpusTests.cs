@@ -11,7 +11,8 @@ public sealed class ArticleRagCorpusTests
         var result = ArticleCorpusLoader.Load(FixtureDirectory);
 
         Assert.True(result.IsValid, string.Join(Environment.NewLine, result.Errors));
-        var document = Assert.Single(result.Documents);
+        Assert.Equal(2, result.Documents.Count);
+        var document = result.Documents.Single(item => item.DocumentId == "synthetic-astralis-g2-recap");
         Assert.Equal("synthetic-astralis-g2-recap", document.DocumentId);
         Assert.Equal("en", document.Language);
         Assert.Equal(new[] { "astralis", "g2", "fixture" }, document.Tags);

@@ -138,6 +138,9 @@ unstructured editorial evidence that can be retrieved, inspected, and later cite
 an LLM. The first retriever is an in-memory BM25 lexical baseline—there are no
 embeddings, vector database, crawler, or model call in the corpus-build command.
 
+For a complete reproducible walkthrough of the evidence flow and its failure states,
+see [the Article RAG technical demonstration](docs/rag-technical-demo.md).
+
 Real article copies are private learning input. Before adding them, keep these paths
 local and uncommitted:
 

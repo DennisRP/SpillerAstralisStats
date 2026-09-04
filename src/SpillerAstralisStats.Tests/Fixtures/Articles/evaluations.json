@@ -1,10 +1,10 @@
 [
   {
     "queryId": "synthetic-g2-recap",
-    "question": "What does the synthetic recap say about G2?",
+    "question": "Who won the synthetic series between Astralis and G2?",
     "expectsSupport": true,
-    "relevantDocumentIds": ["synthetic-astralis-g2-recap"],
-    "relevantChunkIds": []
+    "relevantDocumentIds": [],
+    "relevantChunkIds": ["synthetic-astralis-g2-recap#chunk-02"]
   },
   {
     "queryId": "unsupported",

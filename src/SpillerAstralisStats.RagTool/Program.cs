@@ -14,9 +14,15 @@ if (args.Length >= 2 && args[0] == "article" && args[1] == "answer")
     return await AnswerArticleAsync(args);
 }
 
+if (args.Length == 2 && args[0] == "demo" && args[1] == "run")
+{
+    return await RunDemoAsync();
+}
+
 Console.Error.WriteLine("Usage:");
 Console.Error.WriteLine("  corpus build [--content <directory>] [--evaluations <file>] [--skip-evaluations]");
 Console.Error.WriteLine("  article answer --question <question> [--content <directory>] [--top-k <count>] [--use-foundry]");
+Console.Error.WriteLine("  demo run");
 return 2;
 
 static int BuildCorpus(IReadOnlyList<string> arguments)
@@ -136,6 +142,24 @@ static async Task<int> AnswerArticleAsync(IReadOnlyList<string> arguments)
     catch (Exception exception) when (exception is ArticleRagGenerationException or InvalidOperationException)
     {
         Console.Error.WriteLine($"Generation failed: {exception.Message}");
+        return 1;
+    }
+}
+
+static async Task<int> RunDemoAsync()
+{
+    var fixtureDirectory = Path.Combine(Directory.GetCurrentDirectory(), "src", "SpillerAstralisStats.Tests", "Fixtures", "Articles");
+    var evaluationPath = Path.Combine(fixtureDirectory, "evaluations.json");
+
+    try
+    {
+        var demo = await ArticleRagDemoRunner.RunAsync(fixtureDirectory, evaluationPath);
+        Console.WriteLine(ArticleRagDemoTraceFormatter.Format(demo));
+        return 0;
+    }
+    catch (InvalidOperationException exception)
+    {
+        Console.Error.WriteLine($"Demonstration failed: {exception.Message}");
         return 1;
     }
 }
